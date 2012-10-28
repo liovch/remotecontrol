@@ -10,6 +10,14 @@
 
 #include "cameraimageprovider.h"
 
+#include <QtMobility/qmobilityglobal.h>
+#include <qbluetoothsocket.h>
+QTM_BEGIN_NAMESPACE
+class QBluetoothSocket;
+QTM_END_NAMESPACE
+
+QTM_USE_NAMESPACE
+
 class HttpDaemon : public QTcpServer
 {
     Q_OBJECT
@@ -33,11 +41,18 @@ public:
      void discardClient();
      void imageData(QByteArray data);
 
+     void bluetoothConnected();
+     void bluetoothError(QBluetoothSocket::SocketError error);
+     void bluetoothDataReceived();
+
  private:
+     void mainPage(QTcpSocket *socket);
      bool disabled;
 
     CameraImageProvider *m_camera;
     QList<QTcpSocket*> m_imageSockets;
+
+    QBluetoothSocket *m_bluetoothSocket;
 };
 
 #endif // HTTPDAEMON_H

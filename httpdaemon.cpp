@@ -7,6 +7,13 @@ HttpDaemon::HttpDaemon(quint16 port, QObject* parent)
     listen(QHostAddress::Any, port);
     m_camera->init();
     connect(m_camera, SIGNAL(imageData(QByteArray)), this, SLOT(imageData(QByteArray)));
+
+    QBluetoothAddress address("00:12:02:28:03:34");
+    m_bluetoothSocket = new QBluetoothSocket(QBluetoothSocket::RfcommSocket, this);
+    connect(m_bluetoothSocket, SIGNAL(connected()), this, SLOT(bluetoothConnected()));
+    connect(m_bluetoothSocket, SIGNAL(error(QBluetoothSocket::SocketError)), this, SLOT(bluetoothError(QBluetoothSocket::SocketError)));
+    connect(m_bluetoothSocket, SIGNAL(readyRead()), this, SLOT(bluetoothDataReceived()));
+    m_bluetoothSocket->connectToService(address, QBluetoothUuid::SerialPort);
 }
 
 void HttpDaemon::incomingConnection(int socket)
@@ -26,6 +33,54 @@ void HttpDaemon::incomingConnection(int socket)
     s->setSocketDescriptor(socket);
 
     qDebug() << "New Connection";
+}
+
+void HttpDaemon::mainPage(QTcpSocket *socket)
+{
+    QTextStream os(socket);
+    os.setAutoDetectUnicode(true);
+    os << "HTTP/1.0 200 Ok\r\n"
+        "Content-Type: text/html; charset=\"utf-8\"\r\n"
+        "\r\n"
+
+          "<html>"
+          "<head>"
+          "<script type=\"text/javascript\">\n"
+
+          "function setFocus()\n"
+          "{\n"
+          "document.getElementById(\"fname\").focus();\n"
+          "}\n"
+          "</script>\n"
+          "</head>\n"
+
+          "<body onload=\"setFocus()\">\n"
+
+          "<h1>Live stream:</h1>\n"
+          "<img src=\"image.jpg\" alt=\"Live stream image\" height=\"480\" width=\"640\"><br>\r\n"
+          << QDateTime::currentDateTime().toString() << "\n"
+
+           "<form>\n"
+           "<input type=\"text\" size=\"2\" maxlength=\"1\" id=\"fname\" onkeyup=\"displayunicode(event); this.select()\" />\n"
+           "</form>\n"
+
+           "<form action=\"keypressed.php\" name=\"aForm\">\n"
+           "<input type=\"hidden\" id=\"key\" name=\"var1\" value=\"0\">\n"
+           "</form>\n"
+
+        "<script type=\"text/javascript\">\n"
+        "function displayunicode(e){\n"
+        "var unicode=e.keyCode? e.keyCode : e.charCode;\n"
+        "document.forms[\"aForm\"].key.value = unicode;\n"
+        "document.forms[\"aForm\"].submit();\n"
+        "}\n"
+        "</script>\n"
+
+           "</body>\n"
+           "</html>\n"
+           ;
+
+    socket->close();
 }
 
 void HttpDaemon::readClient()
@@ -48,19 +103,8 @@ void HttpDaemon::readClient()
             break;
 
         if (tokens[0] == "GET" && tokens[1] == "/") {
-            QTextStream os(socket);
-            os.setAutoDetectUnicode(true);
-            os << "HTTP/1.0 200 Ok\r\n"
-                "Content-Type: text/html; charset=\"utf-8\"\r\n"
-                "\r\n"
-                "<h1>Live stream:</h1>\n"
-                "<img src=\"image.jpg\" alt=\"Live stream image\" height=\"480\" width=\"640\"><br>\r\n"
-                << QDateTime::currentDateTime().toString() << "\n";
-
-            socket->close();
-        }
-
-        if (tokens[0] == "GET" && tokens[1] == "/image.jpg") {
+            mainPage(socket);
+        } else if (tokens[0] == "GET" && tokens[1] == "/image.jpg") {
             QTextStream os(socket);
             os.setAutoDetectUnicode(true);
             os << "HTTP/1.0 200 Ok\r\n"
@@ -68,6 +112,19 @@ void HttpDaemon::readClient()
                 "boundary=magicalboundarystring\n\n"
                 "--magicalboundarystring\n";
             m_imageSockets.append(socket);
+            qDebug() << "m_imageSockets size" << m_imageSockets.size();
+        } else if (tokens[0] == "GET" && tokens[1].startsWith("/keypressed.php")) {
+            int index = tokens[1].lastIndexOf("=");
+            QString value = tokens[1].right(tokens[1].size() - index - 1);
+            QString character = QString((char)value.toInt());
+            character = character.toLower();
+            if (character == "w") character = "s";
+            else if (character == "s") character = "w";
+            if (character.size() > 0) {
+                qDebug() << value << character.at(0).toLatin1();
+                m_bluetoothSocket->putChar(character.at(0).toLatin1());
+            }
+            mainPage(socket);
         }
 
     } while (false);
@@ -92,6 +149,13 @@ void HttpDaemon::discardClient()
 
 void HttpDaemon::imageData(QByteArray data)
 {
+    static int counter = 0;
+    if (counter < 3) {
+        counter++;
+        return;
+    }
+    counter = 0;
+
     foreach (QTcpSocket* socket, m_imageSockets) {
         {
             QTextStream os(socket);
@@ -107,4 +171,21 @@ void HttpDaemon::imageData(QByteArray data)
             os << "\n--magicalboundarystring\n";
         }
     }
+}
+
+void HttpDaemon::bluetoothConnected()
+{
+    qDebug() << "Bluetooth has connected successfully";
+}
+
+void HttpDaemon::bluetoothError(QBluetoothSocket::SocketError error)
+{
+    qDebug() << "Bluetooth Error:" << error;
+}
+
+void HttpDaemon::bluetoothDataReceived()
+{
+    qint64 bytesAvailable = m_bluetoothSocket->bytesAvailable();
+    QByteArray data = m_bluetoothSocket->read(bytesAvailable);
+    Q_UNUSED(data);
 }

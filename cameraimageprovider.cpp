@@ -46,7 +46,7 @@ bool CameraImageProvider::init()
 
     QImageEncoderSettings imageSettings;
     imageSettings.setCodec("image/jpeg");
-    imageSettings.setResolution(640, 480);
+    imageSettings.setResolution(320, 240);
     m_imageCapture->setEncodingSettings(imageSettings);
 
     // Note: QCameraFocus::HyperfocalFocus and QCameraFocus::FocusPointCenter are not supported

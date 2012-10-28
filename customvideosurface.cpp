@@ -19,7 +19,7 @@ bool CustomVideoSurface::present(const QVideoFrame &frame)
         QByteArray array;
         QBuffer buffer(&array);
         buffer.open(QIODevice::WriteOnly);
-        if (!image.save(&buffer, "JPG", 70))
+        if (!image.save(&buffer, "JPG", 30))
             qDebug() << "Failed to save image";
         else {
             emit imageSaved(array);
