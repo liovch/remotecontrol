@@ -42,36 +42,22 @@ void HttpDaemon::mainPage(QTcpSocket *socket)
     os << "HTTP/1.0 200 Ok\r\n"
         "Content-Type: text/html; charset=\"utf-8\"\r\n"
         "\r\n"
+          "<form name=\"inputform\">\n"
+          "<input type=\"text\" size=\"2\" maxlength=\"1\" name=\"fname\" onkeyup=\"displayunicode(event); this.select()\" />\n"
+          "</form>\n"
 
-          "<html>"
+          "<form action=\"keypressed.php\" name=\"aForm\">\n"
+          "<input type=\"hidden\" id=\"key\" name=\"var1\" value=\"0\">\n"
+          "</form>\n"
 
-          "<body>\n"
-
-          "<h1>Live stream:</h1>\n"
-          "<img src=\"image.jpg\" alt=\"Live stream image\" height=\"480\" width=\"640\"><br>\r\n"
-          << QDateTime::currentDateTime().toString() << "\n"
-
-           "<form name=\"inputform\">\n"
-           "<input type=\"text\" size=\"2\" maxlength=\"1\" name=\"fname\" onkeyup=\"displayunicode(event); this.select()\" />\n"
-           "</form>\n"
-
-           "<form action=\"keypressed.php\" name=\"aForm\">\n"
-           "<input type=\"hidden\" id=\"key\" name=\"var1\" value=\"0\">\n"
-           "</form>\n"
-
-        "<script type=\"text/javascript\">\n"
-        "function displayunicode(e){\n"
-        "var unicode=e.keyCode? e.keyCode : e.charCode;\n"
-        "document.forms[\"aForm\"].key.value = unicode;\n"
-        "document.forms[\"aForm\"].submit();\n"
-        "}\n"
-        "document.inputform.fname.focus();\n"
-        "</script>\n"
-
-           "</body>\n"
-           "</html>\n"
-           ;
-
+       "<script type=\"text/javascript\">\n"
+       "function displayunicode(e){\n"
+       "var unicode=e.keyCode? e.keyCode : e.charCode;\n"
+       "document.forms[\"aForm\"].key.value = unicode;\n"
+       "document.forms[\"aForm\"].submit();\n"
+       "}\n"
+       "document.inputform.fname.focus();\n"
+       "</script>\n";
     socket->close();
 }
 
@@ -95,6 +81,25 @@ void HttpDaemon::readClient()
             break;
 
         if (tokens[0] == "GET" && tokens[1] == "/") {
+            QTextStream os(socket);
+            os.setAutoDetectUnicode(true);
+            os << "HTTP/1.0 200 Ok\r\n"
+                "Content-Type: text/html; charset=\"utf-8\"\r\n"
+                "\r\n"
+                "<frameset cols=\"75%,25%\">"
+                "<frame src=\"image.htm\">"
+                "<frame src=\"controls.htm\">"
+                "</frameset>";
+            socket->close();
+        } else if (tokens[0] == "GET" && tokens[1] == "/image.htm") {
+            QTextStream os(socket);
+            os.setAutoDetectUnicode(true);
+            os << "HTTP/1.0 200 Ok\r\n"
+                "Content-Type: text/html; charset=\"utf-8\"\r\n"
+                "\r\n"
+                "<img src=\"image.jpg\" alt=\"Live stream image\" height=\"480\" width=\"640\"><br>\r\n";
+            socket->close();
+        } else if (tokens[0] == "GET" && tokens[1] == "/controls.htm") {
             mainPage(socket);
         } else if (tokens[0] == "GET" && tokens[1] == "/image.jpg") {
             QTextStream os(socket);
