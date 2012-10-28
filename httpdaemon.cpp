@@ -44,24 +44,15 @@ void HttpDaemon::mainPage(QTcpSocket *socket)
         "\r\n"
 
           "<html>"
-          "<head>"
-          "<script type=\"text/javascript\">\n"
 
-          "function setFocus()\n"
-          "{\n"
-          "document.getElementById(\"fname\").focus();\n"
-          "}\n"
-          "</script>\n"
-          "</head>\n"
-
-          "<body onload=\"setFocus()\">\n"
+          "<body>\n"
 
           "<h1>Live stream:</h1>\n"
           "<img src=\"image.jpg\" alt=\"Live stream image\" height=\"480\" width=\"640\"><br>\r\n"
           << QDateTime::currentDateTime().toString() << "\n"
 
-           "<form>\n"
-           "<input type=\"text\" size=\"2\" maxlength=\"1\" id=\"fname\" onkeyup=\"displayunicode(event); this.select()\" />\n"
+           "<form name=\"inputform\">\n"
+           "<input type=\"text\" size=\"2\" maxlength=\"1\" name=\"fname\" onkeyup=\"displayunicode(event); this.select()\" />\n"
            "</form>\n"
 
            "<form action=\"keypressed.php\" name=\"aForm\">\n"
@@ -74,6 +65,7 @@ void HttpDaemon::mainPage(QTcpSocket *socket)
         "document.forms[\"aForm\"].key.value = unicode;\n"
         "document.forms[\"aForm\"].submit();\n"
         "}\n"
+        "document.inputform.fname.focus();\n"
         "</script>\n"
 
            "</body>\n"
