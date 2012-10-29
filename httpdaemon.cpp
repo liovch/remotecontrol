@@ -105,9 +105,9 @@ void HttpDaemon::readClient()
             QTextStream os(socket);
             os.setAutoDetectUnicode(true);
             os << "HTTP/1.0 200 Ok\r\n"
-                "Content-type: multipart/x-mixed-replace;"
-                "boundary=magicalboundarystring\n\n"
-                "--magicalboundarystring\n";
+                "Content-Type: multipart/x-mixed-replace;"
+                "boundary=magicalboundarystring\r\n"
+                "\r\n--magicalboundarystring\r\n";
             m_imageSockets.append(socket);
             qDebug() << "m_imageSockets size" << m_imageSockets.size();
         } else if (tokens[0] == "GET" && tokens[1].startsWith("/keypressed.php")) {
@@ -154,10 +154,13 @@ void HttpDaemon::imageData(QByteArray data)
     counter = 0;
 
     foreach (QTcpSocket* socket, m_imageSockets) {
+
         {
             QTextStream os(socket);
             os.setAutoDetectUnicode(true);
-            os << "Content-type: image/jpeg\n\n";
+            os << "Content-Type: image/jpeg\r\n"
+                  "Cache-Control: no-cache\r\n"
+                  "\r\n";
         }
 
         socket->write(data);
@@ -165,7 +168,7 @@ void HttpDaemon::imageData(QByteArray data)
         {
             QTextStream os(socket);
             os.setAutoDetectUnicode(true);
-            os << "\n--magicalboundarystring\n";
+            os << "\r\n--magicalboundarystring\r\n";
         }
     }
 }
