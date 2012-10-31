@@ -16,6 +16,8 @@ public:
     ~CameraImageProvider();
 
     bool init();
+    void start();
+    void stop();
 
 signals:
     void imageData(QByteArray data);

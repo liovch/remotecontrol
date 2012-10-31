@@ -109,6 +109,8 @@ void HttpDaemon::readClient()
                 "Content-Type: multipart/x-mixed-replace;"
                 "boundary=magicalboundarystring\r\n"
                 "\r\n--magicalboundarystring\r\n";
+            if (m_imageSockets.isEmpty())
+                m_camera->start();
             m_imageSockets.append(socket);
             qDebug() << "m_imageSockets size" << m_imageSockets.size();
         } else if (tokens[0] == "GET" && tokens[1].startsWith("/keypressed.php")) {
@@ -131,6 +133,8 @@ void HttpDaemon::readClient()
 
     if (socket->state() == QTcpSocket::UnconnectedState) {
         m_imageSockets.removeOne(socket);
+        if (m_imageSockets.isEmpty())
+            m_camera->stop();
         delete socket;
         qDebug() << "Connection closed";
     }
@@ -140,6 +144,8 @@ void HttpDaemon::discardClient()
 {
     QTcpSocket* socket = (QTcpSocket*)sender();
     m_imageSockets.removeOne(socket);
+    if (m_imageSockets.isEmpty())
+        m_camera->stop();
     socket->deleteLater();
 
     qDebug() << "Connection closed";
@@ -147,6 +153,8 @@ void HttpDaemon::discardClient()
 
 void HttpDaemon::frameReceived(QVideoFrame frame)
 {
+    qDebug() << "FrameReceived";
+
     static int counter = 0;
     if (counter < 3) {
         counter++;

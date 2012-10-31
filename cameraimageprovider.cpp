@@ -58,13 +58,23 @@ bool CameraImageProvider::init()
     connect(m_camera, SIGNAL(stateChanged(QCamera::State)), this, SLOT(stateChanged(QCamera::State)));
 
     m_camera->setCaptureMode(QCamera::CaptureStillImage);
-    m_camera->start();
 
-    // Note: imageCapture signal is emited with a low-res version of an image (853 , 480)
-    //connect(m_imageCapture, SIGNAL(readyForCaptureChanged(bool)), this, SLOT(readyForCapture(bool)));
-    //connect(m_imageCapture, SIGNAL(imageCaptured(int,QImage)), this, SLOT(processCapturedImage(int,QImage)));
     connect(m_videoSurface, SIGNAL(frameReceived(QVideoFrame)), this, SIGNAL(frameReceived(QVideoFrame)));
     return true;
+}
+
+void CameraImageProvider::start()
+{
+    qDebug() << "Starting camera";
+    if (m_camera)
+        m_camera->start();
+}
+
+void CameraImageProvider::stop()
+{
+    qDebug() << "Stopping camera";
+    if (m_camera)
+        m_camera->stop();
 }
 
 void CameraImageProvider::stateChanged(QCamera::State state)
