@@ -1,4 +1,5 @@
 #include "httpdaemon.h"
+#include <QBuffer>
 
 HttpDaemon::HttpDaemon(quint16 port, QObject* parent)
     : QTcpServer(parent), disabled(false)
@@ -6,7 +7,7 @@ HttpDaemon::HttpDaemon(quint16 port, QObject* parent)
     m_camera = new CameraImageProvider(this);
     listen(QHostAddress::Any, port);
     m_camera->init();
-    connect(m_camera, SIGNAL(imageData(QByteArray)), this, SLOT(imageData(QByteArray)));
+    connect(m_camera, SIGNAL(frameReceived(QVideoFrame)), this, SLOT(frameReceived(QVideoFrame)));
 
     QBluetoothAddress address("00:12:02:28:03:34");
     m_bluetoothSocket = new QBluetoothSocket(QBluetoothSocket::RfcommSocket, this);
@@ -144,7 +145,7 @@ void HttpDaemon::discardClient()
     qDebug() << "Connection closed";
 }
 
-void HttpDaemon::imageData(QByteArray data)
+void HttpDaemon::frameReceived(QVideoFrame frame)
 {
     static int counter = 0;
     if (counter < 3) {
@@ -153,22 +154,41 @@ void HttpDaemon::imageData(QByteArray data)
     }
     counter = 0;
 
-    foreach (QTcpSocket* socket, m_imageSockets) {
+    if (!const_cast<QVideoFrame&>(frame).map(QAbstractVideoBuffer::ReadOnly)) {
+        qDebug() << "Failed to map frame";
+    } else {
+//        qDebug() << frame.bits() << frame.width() << frame.height() << frame.bytesPerLine() << frame.imageFormatFromPixelFormat(frame.pixelFormat());
+        QImage image(frame.bits(), frame.width(), frame.height(), frame.bytesPerLine(), frame.imageFormatFromPixelFormat(frame.pixelFormat()));
 
-        {
-            QTextStream os(socket);
-            os.setAutoDetectUnicode(true);
-            os << "Content-Type: image/jpeg\r\n"
-                  "Cache-Control: no-cache\r\n"
-                  "\r\n";
-        }
+        QByteArray data;
+        QBuffer buffer(&data);
+        buffer.open(QIODevice::WriteOnly);
+        if (!image.save(&buffer, "JPG", 30)) {
+            qDebug() << "Failed to save image";
+            const_cast<QVideoFrame&>(frame).unmap();
+        } else {
+            const_cast<QVideoFrame&>(frame).unmap();
+//            qDebug() << "Image size:" << array.size();
 
-        socket->write(data);
+            foreach (QTcpSocket* socket, m_imageSockets) {
 
-        {
-            QTextStream os(socket);
-            os.setAutoDetectUnicode(true);
-            os << "\r\n--magicalboundarystring\r\n";
+                {
+                    QTextStream os(socket);
+                    os.setAutoDetectUnicode(true);
+                    os << "Content-Type: image/jpeg\r\n"
+                          "Cache-Control: no-cache\r\n"
+                          "\r\n";
+                }
+
+                socket->write(data);
+
+                {
+                    QTextStream os(socket);
+                    os.setAutoDetectUnicode(true);
+                    os << "\r\n--magicalboundarystring\r\n";
+                }
+            }
+
         }
     }
 }

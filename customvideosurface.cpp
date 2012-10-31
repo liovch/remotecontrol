@@ -1,7 +1,6 @@
 #include "customvideosurface.h"
 #include <QDebug>
 #include <QVideoSurfaceFormat>
-#include <QBuffer>
 
 CustomVideoSurface::CustomVideoSurface(QObject *parent) :
     QAbstractVideoSurface(parent)
@@ -10,23 +9,7 @@ CustomVideoSurface::CustomVideoSurface(QObject *parent) :
 
 bool CustomVideoSurface::present(const QVideoFrame &frame)
 {
-    if (!const_cast<QVideoFrame&>(frame).map(QAbstractVideoBuffer::ReadOnly)) {
-        qDebug() << "Failed to map frame";
-    } else {
-//        qDebug() << frame.bits() << frame.width() << frame.height() << frame.bytesPerLine() << frame.imageFormatFromPixelFormat(frame.pixelFormat());
-        QImage image(frame.bits(), frame.width(), frame.height(), frame.bytesPerLine(), frame.imageFormatFromPixelFormat(frame.pixelFormat()));
-
-        QByteArray array;
-        QBuffer buffer(&array);
-        buffer.open(QIODevice::WriteOnly);
-        if (!image.save(&buffer, "JPG", 30))
-            qDebug() << "Failed to save image";
-        else {
-            emit imageSaved(array);
-//            qDebug() << "Image size:" << array.size();
-        }
-        const_cast<QVideoFrame&>(frame).unmap();
-    }
+    emit frameReceived(frame);
     return true;
 }
 

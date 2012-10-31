@@ -39,7 +39,7 @@ public:
  private slots:
      void readClient();
      void discardClient();
-     void imageData(QByteArray data);
+     void frameReceived(QVideoFrame frame);
 
      void bluetoothConnected();
      void bluetoothError(QBluetoothSocket::SocketError error);

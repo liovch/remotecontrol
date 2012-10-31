@@ -19,11 +19,11 @@ public:
 
 signals:
     void imageData(QByteArray data);
+    void frameReceived(QVideoFrame frame);
 
 public slots:
     void stateChanged(QCamera::State state);
     void cameraError(QCamera::Error error);
-    void imageSaved(QByteArray data);
 
 private:
     QCamera *m_camera;

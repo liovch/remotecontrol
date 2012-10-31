@@ -63,7 +63,7 @@ bool CameraImageProvider::init()
     // Note: imageCapture signal is emited with a low-res version of an image (853 , 480)
     //connect(m_imageCapture, SIGNAL(readyForCaptureChanged(bool)), this, SLOT(readyForCapture(bool)));
     //connect(m_imageCapture, SIGNAL(imageCaptured(int,QImage)), this, SLOT(processCapturedImage(int,QImage)));
-    connect(m_videoSurface, SIGNAL(imageSaved(QByteArray)), this, SLOT(imageSaved(QByteArray)));
+    connect(m_videoSurface, SIGNAL(frameReceived(QVideoFrame)), this, SIGNAL(frameReceived(QVideoFrame)));
     return true;
 }
 
@@ -75,9 +75,4 @@ void CameraImageProvider::stateChanged(QCamera::State state)
 void CameraImageProvider::cameraError(QCamera::Error error)
 {
     qDebug() << "Camera error:" << error;
-}
-
-void CameraImageProvider::imageSaved(QByteArray data)
-{
-    emit imageData(data);
 }

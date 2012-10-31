@@ -12,7 +12,7 @@ public:
     virtual bool present( const QVideoFrame & frame );
     virtual QList<QVideoFrame::PixelFormat>	supportedPixelFormats(QAbstractVideoBuffer::HandleType type = QAbstractVideoBuffer::NoHandle) const;
 signals:
-    void imageSaved(const QByteArray& data);
+    void frameReceived(QVideoFrame frame);
 public slots:
     
 };
