@@ -68,16 +68,16 @@ void HttpDaemon::readClient()
                  "var ajaxObject = new XMLHttpRequest();\n"
 
                  "function keypressed(e){\n"
-                 "var unicode=e.keyCode? e.keyCode : e.charCode;\n"
-//                 "ajaxObject.abort();\n"
-                 "ajaxObject.open(\"GET\",\"keypressed.php?\" + unicode,true);\n"
-                 "ajaxObject.send(null);\n"
+                    "var unicode=e.keyCode? e.keyCode : e.charCode;\n"
+//                  "ajaxObject.abort();\n"
+                    "ajaxObject.open(\"GET\",\"keypressed.php?\" + unicode,true);\n"
+                    "ajaxObject.send(null);\n"
                  "}\n"
 
                   "function mousemoved(e){\n"
  //                 "ajaxObject.abort();\n"
-                  "ajaxObject.open(\"GET\",\"mousemoved.php?\" + e.clientX + '&' + e.clientY,true);\n"
-                  "ajaxObject.send(null);\n"
+                    "ajaxObject.open(\"GET\",\"mousemoved.php?\" + e.clientX + '&' + e.clientY, true);\n"
+                    "ajaxObject.send(null);\n"
                   "}\n"
 
                  "document.onkeypress=keypressed;\n"
@@ -114,19 +114,28 @@ void HttpDaemon::readClient()
             QString x = values.left(index);
             QString y = values.right(values.size() - index - 1);
             qDebug() << x << "," << y << " Ints:" << x.toInt() << "," << y.toInt();
-            // TODO: Control servos
+            // Control servos
+            m_bluetoothSocket->putChar('-');
+            int angleX = x.toInt() / 4;
+            if (angleX > 180)
+                angleX = 180;
+            int angleY = y.toInt() / 3;
+            if (angleY > 180)
+                angleY = 180;
+            m_bluetoothSocket->putChar((char)angleX);
+            m_bluetoothSocket->putChar((char)angleY);
             socket->close();
         }
 
     } while (false);
 
-    if (socket->state() == QTcpSocket::UnconnectedState) {
-        m_imageSockets.removeOne(socket);
-        if (m_imageSockets.isEmpty())
-            m_camera->stop();
-        delete socket;
-        qDebug() << "Socket is unconnected. Connection closed.";
-    }
+//    if (socket->state() == QTcpSocket::UnconnectedState) {
+//        m_imageSockets.removeOne(socket);
+//        if (m_imageSockets.isEmpty())
+//            m_camera->stop();
+//        delete socket;
+//        qDebug() << "Socket is unconnected. Connection closed.";
+//    }
 }
 
 void HttpDaemon::discardClient()
@@ -165,7 +174,7 @@ void HttpDaemon::frameReceived(QVideoFrame frame)
             const_cast<QVideoFrame&>(frame).unmap();
         } else {
             const_cast<QVideoFrame&>(frame).unmap();
-//            qDebug() << "Image size:" << array.size();
+//            qDebug() << "Image size:" << data.size();
 
             foreach (QTcpSocket* socket, m_imageSockets) {
 

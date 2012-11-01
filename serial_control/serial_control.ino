@@ -1,8 +1,15 @@
+#include <Servo.h>
+
 //Standard PWM DC control
 int E1 = 5;     //M1 Speed Control
 int E2 = 6;     //M2 Speed Control
 int M1 = 4;    //M1 Direction Control
 int M2 = 7;    //M1 Direction Control
+
+Servo servoPan;
+Servo servoTilt;
+
+int ledState = LOW;
  
 void stop(void)                    //Stop
 {
@@ -85,6 +92,19 @@ boolean get_encoder_step(const int iEnc, volatile unsigned int &old_dr)
   return false;
 }
 
+void moveServos()
+{
+  unsigned char dx, dy;
+  
+  while (Serial.available() < 2) {
+    delay(50);
+  }
+  dx = Serial.read();
+  dy = Serial.read();
+  servoPan.write(dx);
+  servoTilt.write(dy);
+}
+
 void setup(void) 
 {
   pinMode(WheelEncoderLeft, INPUT);
@@ -97,6 +117,11 @@ void setup(void)
   int i;
   for (i=4; i<=7; i++)
     pinMode(i, OUTPUT);
+  pinMode(13, OUTPUT);
+
+  servoPan.attach(9);
+  servoTilt.attach(10);
+
   Serial.begin(9600);      //Set Baud Rate
 }
 
@@ -110,12 +135,6 @@ void writeInt(unsigned int value)
 
 void loop(void) 
 {
-  if (isUpdateRequired) {
-	isUpdateRequired = false; // TODO: Not sure how to achieve thread safeness here
-//        writeInt(_encoder_step_left);
-//        writeInt(_encoder_step_right);
-  }
-
   if (Serial.available()) {
     char val = Serial.read();
     if(val != -1)
@@ -134,11 +153,18 @@ void loop(void)
       case 'd'://Turn Right
         turn_R (255,255);
         break;
-      case 'z':
-        Serial.println("Hello");
+      case 'b':
+        if (ledState == LOW)
+          ledState = HIGH;
+        else
+          ledState = LOW;
+        digitalWrite(13, ledState);
         break;
       case 'x':
         stop();
+        break;
+      case '-':
+        moveServos();
         break;
       case 't': // Test
         back_off (127, 0); // Move only one wheel
@@ -148,4 +174,5 @@ void loop(void)
     else stop();  
   }
 }
+
 
