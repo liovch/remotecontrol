@@ -36,32 +36,6 @@ void HttpDaemon::incomingConnection(int socket)
     qDebug() << "New Connection";
 }
 
-void HttpDaemon::mainPage(QTcpSocket *socket)
-{
-    QTextStream os(socket);
-    os.setAutoDetectUnicode(true);
-    os << "HTTP/1.0 200 Ok\r\n"
-        "Content-Type: text/html; charset=\"utf-8\"\r\n"
-        "\r\n"
-          "<form name=\"inputform\">\n"
-          "<input type=\"text\" size=\"2\" maxlength=\"1\" name=\"fname\" onkeyup=\"displayunicode(event); this.select()\" />\n"
-          "</form>\n"
-
-          "<form action=\"keypressed.php\" name=\"aForm\">\n"
-          "<input type=\"hidden\" id=\"key\" name=\"var1\" value=\"0\">\n"
-          "</form>\n"
-
-       "<script type=\"text/javascript\">\n"
-       "function displayunicode(e){\n"
-       "var unicode=e.keyCode? e.keyCode : e.charCode;\n"
-       "document.forms[\"aForm\"].key.value = unicode;\n"
-       "document.forms[\"aForm\"].submit();\n"
-       "}\n"
-       "document.inputform.fname.focus();\n"
-       "</script>\n";
-    socket->close();
-}
-
 void HttpDaemon::readClient()
 {
     if (disabled)
@@ -87,21 +61,29 @@ void HttpDaemon::readClient()
             os << "HTTP/1.0 200 Ok\r\n"
                 "Content-Type: text/html; charset=\"utf-8\"\r\n"
                 "\r\n"
-                "<frameset cols=\"75%,25%\">"
-                "<frame src=\"image.htm\">"
-                "<frame src=\"controls.htm\">"
-                "</frameset>";
+
+                "<img src=\"image.jpg\" alt=\"Live stream image\" height=\"480\" width=\"640\"><br>\r\n"
+
+                 "<script type=\"text/javascript\">\n"
+                 "var ajaxObject = new XMLHttpRequest();\n"
+
+                 "function keypressed(e){\n"
+                 "var unicode=e.keyCode? e.keyCode : e.charCode;\n"
+//                 "ajaxObject.abort();\n"
+                 "ajaxObject.open(\"GET\",\"keypressed.php?\" + unicode,true);\n"
+                 "ajaxObject.send(null);\n"
+                 "}\n"
+
+                  "function mousemoved(e){\n"
+ //                 "ajaxObject.abort();\n"
+                  "ajaxObject.open(\"GET\",\"mousemoved.php?\" + e.clientX + '&' + e.clientY,true);\n"
+                  "ajaxObject.send(null);\n"
+                  "}\n"
+
+                 "document.onkeypress=keypressed;\n"
+                 "document.onmousemove=mousemoved;\n"
+                 "</script>\r\n";
             socket->close();
-        } else if (tokens[0] == "GET" && tokens[1] == "/image.htm") {
-            QTextStream os(socket);
-            os.setAutoDetectUnicode(true);
-            os << "HTTP/1.0 200 Ok\r\n"
-                "Content-Type: text/html; charset=\"utf-8\"\r\n"
-                "\r\n"
-                "<img src=\"image.jpg\" alt=\"Live stream image\" height=\"480\" width=\"640\"><br>\r\n";
-            socket->close();
-        } else if (tokens[0] == "GET" && tokens[1] == "/controls.htm") {
-            mainPage(socket);
         } else if (tokens[0] == "GET" && tokens[1] == "/image.jpg") {
             QTextStream os(socket);
             os.setAutoDetectUnicode(true);
@@ -114,7 +96,7 @@ void HttpDaemon::readClient()
             m_imageSockets.append(socket);
             qDebug() << "m_imageSockets size" << m_imageSockets.size();
         } else if (tokens[0] == "GET" && tokens[1].startsWith("/keypressed.php")) {
-            int index = tokens[1].lastIndexOf("=");
+            int index = tokens[1].lastIndexOf("?");
             QString value = tokens[1].right(tokens[1].size() - index - 1);
             QString character = QString((char)value.toInt());
             character = character.toLower();
@@ -124,19 +106,26 @@ void HttpDaemon::readClient()
                 qDebug() << value << character.at(0).toLatin1();
                 m_bluetoothSocket->putChar(character.at(0).toLatin1());
             }
-            mainPage(socket);
+            socket->close();
+        } else if (tokens[0] == "GET" && tokens[1].startsWith("/mousemoved.php")) {
+            int index = tokens[1].lastIndexOf("?");
+            QString values = tokens[1].right(tokens[1].size() - index - 1);
+            index = values.lastIndexOf("&");
+            QString x = values.left(index);
+            QString y = values.right(values.size() - index - 1);
+            qDebug() << x << "," << y << " Ints:" << x.toInt() << "," << y.toInt();
+            // TODO: Control servos
+            socket->close();
         }
 
     } while (false);
-
-    qDebug() << "Wrote to client";
 
     if (socket->state() == QTcpSocket::UnconnectedState) {
         m_imageSockets.removeOne(socket);
         if (m_imageSockets.isEmpty())
             m_camera->stop();
         delete socket;
-        qDebug() << "Connection closed";
+        qDebug() << "Socket is unconnected. Connection closed.";
     }
 }
 
@@ -153,7 +142,7 @@ void HttpDaemon::discardClient()
 
 void HttpDaemon::frameReceived(QVideoFrame frame)
 {
-    qDebug() << "FrameReceived";
+//    qDebug() << "FrameReceived";
 
     static int counter = 0;
     if (counter < 3) {
