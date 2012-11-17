@@ -41,7 +41,10 @@ public:
      void discardClient();
      void frameReceived(QVideoFrame frame);
 
+     void connectBluetooth();
+     void disconnectBluetooth();
      void bluetoothConnected();
+     void bluetoothDisconnected();
      void bluetoothError(QBluetoothSocket::SocketError error);
      void bluetoothDataReceived();
 

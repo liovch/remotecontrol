@@ -9,6 +9,8 @@ int M2 = 7;    //M1 Direction Control
 Servo servoPan;
 Servo servoTilt;
 
+int maxServoTilt = 110;
+
 int ledState = LOW;
  
 void stop(void)                    //Stop
@@ -101,8 +103,10 @@ void moveServos()
   }
   dx = Serial.read();
   dy = Serial.read();
-  servoPan.write(dx);
-  servoTilt.write(dy);
+  if (dy > maxServoTilt)
+    dy = maxServoTilt;
+  servoPan.write(180 - dx);
+  servoTilt.write(180 - dy);
 }
 
 void setup(void) 

@@ -1,20 +1,18 @@
 #include "httpdaemon.h"
 #include <QBuffer>
+#include <QTimer>
 
 HttpDaemon::HttpDaemon(quint16 port, QObject* parent)
-    : QTcpServer(parent), disabled(false)
+    : QTcpServer(parent),
+      disabled(false),
+      m_bluetoothSocket(0)
 {
     m_camera = new CameraImageProvider(this);
     listen(QHostAddress::Any, port);
     m_camera->init();
     connect(m_camera, SIGNAL(frameReceived(QVideoFrame)), this, SLOT(frameReceived(QVideoFrame)));
 
-    QBluetoothAddress address("00:12:02:28:03:34");
-    m_bluetoothSocket = new QBluetoothSocket(QBluetoothSocket::RfcommSocket, this);
-    connect(m_bluetoothSocket, SIGNAL(connected()), this, SLOT(bluetoothConnected()));
-    connect(m_bluetoothSocket, SIGNAL(error(QBluetoothSocket::SocketError)), this, SLOT(bluetoothError(QBluetoothSocket::SocketError)));
-    connect(m_bluetoothSocket, SIGNAL(readyRead()), this, SLOT(bluetoothDataReceived()));
-    m_bluetoothSocket->connectToService(address, QBluetoothUuid::SerialPort);
+    connectBluetooth();
 }
 
 void HttpDaemon::incomingConnection(int socket)
@@ -104,7 +102,8 @@ void HttpDaemon::readClient()
             else if (character == "s") character = "w";
             if (character.size() > 0) {
                 qDebug() << value << character.at(0).toLatin1();
-                m_bluetoothSocket->putChar(character.at(0).toLatin1());
+                if (m_bluetoothSocket && m_bluetoothSocket->state() == QBluetoothSocket::ConnectedState)
+                    m_bluetoothSocket->putChar(character.at(0).toLatin1());
             }
             socket->close();
         } else if (tokens[0] == "GET" && tokens[1].startsWith("/mousemoved.php")) {
@@ -115,15 +114,19 @@ void HttpDaemon::readClient()
             QString y = values.right(values.size() - index - 1);
             qDebug() << x << "," << y << " Ints:" << x.toInt() << "," << y.toInt();
             // Control servos
-            m_bluetoothSocket->putChar('-');
+            if (m_bluetoothSocket && m_bluetoothSocket->state() == QBluetoothSocket::ConnectedState)
+                m_bluetoothSocket->putChar('-');
             int angleX = x.toInt() / 4;
             if (angleX > 180)
                 angleX = 180;
             int angleY = y.toInt() / 3;
             if (angleY > 180)
                 angleY = 180;
-            m_bluetoothSocket->putChar((char)angleX);
-            m_bluetoothSocket->putChar((char)angleY);
+            angleY = 180 - angleY;
+            if (m_bluetoothSocket && m_bluetoothSocket->state() == QBluetoothSocket::ConnectedState) {
+                m_bluetoothSocket->putChar((char)angleX);
+                m_bluetoothSocket->putChar((char)angleY);
+            }
             socket->close();
         }
 
@@ -199,14 +202,50 @@ void HttpDaemon::frameReceived(QVideoFrame frame)
     }
 }
 
+void HttpDaemon::connectBluetooth()
+{
+    if (!m_bluetoothSocket) {
+        qDebug() << "Connecting bluetooth...";
+        m_bluetoothSocket = new QBluetoothSocket(QBluetoothSocket::RfcommSocket);
+        connect(m_bluetoothSocket, SIGNAL(connected()), this, SLOT(bluetoothConnected()));
+        connect(m_bluetoothSocket, SIGNAL(disconnected()), this, SLOT(bluetoothDisconnected()));
+        connect(m_bluetoothSocket, SIGNAL(error(QBluetoothSocket::SocketError)), this, SLOT(bluetoothError(QBluetoothSocket::SocketError)));
+        connect(m_bluetoothSocket, SIGNAL(readyRead()), this, SLOT(bluetoothDataReceived()));
+
+        QBluetoothAddress address("00:12:02:28:03:34");
+        m_bluetoothSocket->connectToService(address, QBluetoothUuid::SerialPort);
+    }
+}
+
+void HttpDaemon::disconnectBluetooth()
+{
+    if (m_bluetoothSocket) {
+        qDebug() << "Disconnecting bluetooth...";
+        disconnect(this, SLOT(bluetoothConnected()));
+        disconnect(this, SLOT(bluetoothDisconnected()));
+        disconnect(this, SLOT(bluetoothError(QBluetoothSocket::SocketError)));
+        disconnect(this, SLOT(bluetoothDataReceived()));
+        m_bluetoothSocket->deleteLater();
+        m_bluetoothSocket = 0;
+        qDebug() << "Bluetooth disconnected.";
+    }
+}
+
 void HttpDaemon::bluetoothConnected()
 {
     qDebug() << "Bluetooth has connected successfully";
 }
 
+void HttpDaemon::bluetoothDisconnected()
+{
+    qDebug() << "Bluetooth disconnected";
+}
+
 void HttpDaemon::bluetoothError(QBluetoothSocket::SocketError error)
 {
     qDebug() << "Bluetooth Error:" << error;
+    disconnectBluetooth();
+    QTimer::singleShot(3000, this, SLOT(connectBluetooth()));
 }
 
 void HttpDaemon::bluetoothDataReceived()
